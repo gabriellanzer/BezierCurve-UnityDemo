@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
+[ExecuteInEditMode]
 public class bezierPt{
 	public GameObject _pp;
 	public GameObject _cp1;
@@ -80,6 +81,7 @@ public class bezierPt{
 
 }
 
+[ExecuteInEditMode]
 public class control : MonoBehaviour {
 
 	public bool _held = false;
@@ -92,65 +94,124 @@ public class control : MonoBehaviour {
 
 
 	void Start () {
-		_segments.Add(new bezierPt());
-		_segments.Add(new bezierPt());
+        if(_segments.Count < 2)
+        {
+            _segments.Add(new bezierPt());
+            _segments.Add(new bezierPt());
 
-		_segments[0]._next = _segments[1];
-		_segments[0]._pts = _pts;
-		_segments[1]._pts = _pts;
+            _segments[0]._next = _segments[1];
+            _segments[0]._pts = _pts;
+            _segments[1]._pts = _pts;
 
-		_line = GetComponent<LineRenderer>();
-
+            _line = GetComponent<LineRenderer>();
+        }
 	}
-	
-	void Update () {
-		if(Input.GetMouseButtonDown(0) && !_held){
-			Vector3 mpos = Input.mousePosition;
-			mpos.z = 10.0f;
-			mpos = Camera.main.ScreenToWorldPoint(mpos);
 
-			bezierPt bzp1 = _segments[_segments.Count - 2];
-			bezierPt bzp2 = _segments[_segments.Count - 1];
 
-			if (bzp1._pp == null) {
-				bzp1._pp = Instantiate(_prefab, mpos, Quaternion.identity) as GameObject;
-			} else {
-				bzp2._pp = Instantiate(_prefab, mpos, Quaternion.identity) as GameObject;
+    private void CreatePoint(Vector3 pos)
+    {
+        bezierPt bzp1 = _segments[_segments.Count - 2];
+        bezierPt bzp2 = _segments[_segments.Count - 1];
 
-				Vector3 dir = bzp2._pp.transform.position - bzp1._pp.transform.position;
+        if (bzp1._pp == null)
+        {
+            bzp1._pp = Instantiate(_prefab, pos, Quaternion.identity) as GameObject;
+        }
+        else
+        {
+            bzp2._pp = Instantiate(_prefab, pos, Quaternion.identity) as GameObject;
 
-				bzp1._cp2 = Instantiate(_prefab, bzp1._pp.transform.position + dir * 0.3333f, Quaternion.identity) as GameObject;
-				bzp2._cp1 = Instantiate(_prefab, bzp1._pp.transform.position + dir * 0.6666f, Quaternion.identity) as GameObject;
+            Vector3 dir = bzp2._pp.transform.position - bzp1._pp.transform.position;
 
-				bzp1._cp2.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
-				bzp2._cp1.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+            bzp1._cp2 = Instantiate(_prefab, bzp1._pp.transform.position + dir * 0.3333f, Quaternion.identity) as GameObject;
+            bzp2._cp1 = Instantiate(_prefab, bzp1._pp.transform.position + dir * 0.6666f, Quaternion.identity) as GameObject;
 
-				bzp1.setupDrag();
-				bzp2.setupDrag();
+            bzp1._cp2.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+            bzp2._cp1.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
 
-				if (_segments.Count > 2) {
-					bzp1.setupMirror();
-                }
+            bzp1.setupDrag();
+            bzp2.setupDrag();
 
-				_segments.Add(new bezierPt());
-				_segments[_segments.Count - 1]._pts = _pts;
+            if (_segments.Count > 2)
+            {
+                bzp1.setupMirror();
+            }
 
-				bzp2._next = _segments[_segments.Count - 1];
-			}
-			
-		}
+            _segments.Add(new bezierPt());
+            _segments[_segments.Count - 1]._pts = _pts;
 
-		if (Input.GetKey(KeyCode.A)) {
-			_pts.Clear();
-			for (int i = 0; i < _segments.Count - 2; ++i) {
-				_segments[i].calculate();
-			}
+            bzp2._next = _segments[_segments.Count - 1];
+        }
+    }
 
-			_line.SetVertexCount(_pts.Count);
+    void Update()
+    {
+        if (Input.GetMouseButtonDown(0) && !_held)
+        {
+            Vector3 mpos = Input.mousePosition;
+            mpos.z = 10.0f;
+            mpos = Camera.main.ScreenToWorldPoint(mpos);
 
-			for (int i = 0; i < _pts.Count; ++i) {
-				_line.SetPosition(i, _pts[i]);
-			}
-		}
-	}
+            CreatePoint(mpos);
+        }
+
+        if (Input.GetKey(KeyCode.A))
+        {
+            UpdateLineRender();
+        }
+    }
+
+    [ExecuteInEditMode]
+    public void ClearPoints()
+    {
+        for (int i = 0; i < _segments.Count; i++)
+        {
+            if(_segments[i]._pp)
+                DestroyImmediate(_segments[i]._pp);
+            if (_segments[i]._cp1)
+                DestroyImmediate(_segments[i]._cp1);
+            if (_segments[i]._cp2)
+                DestroyImmediate(_segments[i]._cp2);
+        }
+        _segments.Clear();
+        UpdateLineRender();
+    }
+
+    [ExecuteInEditMode]
+    public void UpdateLineRender()
+    {
+        _pts.Clear();
+        for (int i = 0; i < _segments.Count - 2; ++i)
+        {
+            _segments[i].calculate();
+        }
+
+        _line.SetVertexCount(_pts.Count);
+
+        for (int i = 0; i < _pts.Count; ++i)
+        {
+            _line.SetPosition(i, _pts[i]);
+        }
+    }
+
+    [ExecuteInEditMode]
+    public void AddPoint()
+    {
+        Debug.Log("Added Point");
+        if(_line == null)
+            _line = GetComponent<LineRenderer>();
+
+        if (_segments == null)
+            _segments = new List<bezierPt>();
+
+        if (_segments.Count == 0)
+        {
+            Start();
+            CreatePoint(Vector3.zero);
+        }
+        else if (_segments.Count > 1)
+        {
+            CreatePoint(Vector3.zero);
+        }
+    }
 }
